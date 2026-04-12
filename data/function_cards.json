@@ -1,0 +1,50 @@
+[
+  {
+    "code": "660014daa2",
+    "label": "Stark verschmutzt"
+  },
+  {
+    "code": "6600132315",
+    "label": "Übungsgeräte"
+  },
+  {
+    "code": "030070be85",
+    "label": "CSA (Körperschutzform II)"
+  },
+  {
+    "code": "030073071e",
+    "label": "Hitzebeaufschlagung"
+  },
+  {
+    "code": "03006ed47b",
+    "label": "Gefahrstoffe (CBRN)"
+  },
+  {
+    "code": "03006fcbd3",
+    "label": "Einsatz - Allgemein"
+  },
+  {
+    "code": "03006fddc0",
+    "label": "Einsatz - Technische Arbeiten"
+  },
+  {
+    "code": "03006e932f",
+    "label": "Einsatz - Personenrettung"
+  },
+  {
+    "code": "03006fc81e",
+    "label": "Einsatz - Bergungsräumgerät"
+  },
+  {
+    "code": "03007024e0",
+    "label": "Ungenutzt, Prüfung fällig"
+  },
+  {
+    "code": "0300744baf",
+    "label": "Frei"
+  },
+  {
+    "code": "03006fc026",
+    "label": "Frei"
+  }
+]

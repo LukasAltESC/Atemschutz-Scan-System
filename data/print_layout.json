@@ -1,0 +1,292 @@
+{
+  "device": {
+    "paper_width": 32,
+    "line_ending": "\r\n",
+    "line_feeds_after_print": 6
+  },
+  "styles": {
+    "header_title": {
+      "align": "center",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 2,
+      "wrap_width": 32
+    },
+    "header_subtitle": {
+      "align": "center",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "font": "b",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 42
+    },
+    "document_title": {
+      "align": "center",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 32
+    },
+    "meta_primary": {
+      "align": "left",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 32
+    },
+    "section_heading": {
+      "align": "left",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 32
+    },
+    "group_heading": {
+      "align": "left",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "b",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 42,
+      "line_spacing_dots": 24
+    },
+    "material_body": {
+      "align": "left",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "font": "b",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 42,
+      "line_spacing_dots": 24
+    },
+    "details_body": {
+      "align": "left",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "font": "b",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 42
+    },
+    "remarks_body": {
+      "align": "left",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "font": "b",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 42
+    },
+    "spacer": {
+      "align": "left",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 32
+    },
+    "meta_label_compact": {
+      "align": "left",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "font": "a",
+      "width": 1,
+      "height": 1,
+      "wrap_width": 32,
+      "line_spacing_dots": 20
+    }
+  },
+  "content": {
+    "header": {
+      "heading": {
+        "text": "THW OV Donaueschingen",
+        "style": "header_title",
+        "spacing_before": 0,
+        "spacing_after": 0
+      },
+      "subheading": {
+        "text": "Atemschutz-Scan-System",
+        "style": "header_subtitle",
+        "spacing_before": 0,
+        "spacing_after": 0
+      }
+    },
+    "mode": {
+      "style": "document_title",
+      "spacing_before": 0,
+      "spacing_after": 1,
+      "labels": {
+        "lieferschein": "Lieferschein",
+        "verwendungsnachweis": "Verwendungsnachweis"
+      }
+    },
+    "meta": {
+      "operator_name": {
+        "style": "meta_primary",
+        "spacing_before": 0,
+        "spacing_after": 0,
+        "labels": {
+          "lieferschein": "Erfasser",
+          "verwendungsnachweis": "Geraetetraeger/-in"
+        },
+        "value_key": "operator_name",
+        "empty_placeholder_length": 31,
+        "filled_template": "{label}: {value}",
+        "empty_template": "{label}: {placeholder}",
+        "filled_value_on_next_line": true,
+        "filled_label_template": "{label}:",
+        "filled_value_indent": "  ",
+        "label_style": "meta_label_compact"
+      },
+      "datetime": {
+        "style": "meta_primary",
+        "spacing_before": 0,
+        "spacing_after": 0,
+        "label": "Datum",
+        "date_placeholder_label": "Datum",
+        "time_placeholder_label": "Uhrzeit",
+        "template": "{label}: {date} {time}",
+        "date_placeholder_template": "{label}: {placeholder}",
+        "time_placeholder_template": "{label}: {placeholder} Uhr",
+        "date_placeholder_length": 24,
+        "time_placeholder_length": 18
+      },
+      "usage_duration": {
+        "style": "meta_primary",
+        "spacing_before": 0,
+        "spacing_after": 0,
+        "show_only_in_mode": "verwendungsnachweis",
+        "label": "Einsatzdauer",
+        "value_key": "usage_duration_minutes",
+        "filled_template": "{label}: {value}",
+        "empty_template": "{label}: {placeholder} min",
+        "placeholder_length": 10,
+        "append_suffix_if_numeric": " min"
+      }
+    },
+    "field_labels": {
+      "item_type": "Typ",
+      "inventarnummer": "Inv.-Nr.",
+      "fabriknummer": "Fabr.-Nr.",
+      "geraetenummer": "Serien-Nr.",
+      "lf_scan": "LF-Scan",
+      "bemerkung": "Bem."
+    },
+    "sections": {
+      "material": {
+        "title": "Material",
+        "title_style": "section_heading",
+        "spacing_before": 1,
+        "spacing_after": 0,
+        "group_spacing_before": 0,
+        "group_spacing_after": 0,
+        "item_spacing_after": 0,
+        "item_prefix_template": "{index}) ",
+        "item_body_indent": "   ",
+        "group_title_style": "group_heading",
+        "item_style": "material_body",
+        "empty_text": "-",
+        "groups": {
+          "Atem-Druckluftflasche": {
+            "title": "Flasche",
+            "fields": [
+              "item_type",
+              "inventarnummer",
+              "lf_scan",
+              "bemerkung"
+            ]
+          },
+          "Vollmaske": {
+            "title": "Vollmaske",
+            "fields": [
+              "item_type",
+              "inventarnummer",
+              "fabriknummer",
+              "bemerkung"
+            ]
+          },
+          "Pressluftatmer": {
+            "title": "Pressluftatmer",
+            "fields": [
+              "item_type",
+              "inventarnummer",
+              "bemerkung"
+            ]
+          },
+          "Lungenautomat": {
+            "title": "Lungenautomat",
+            "fields": [
+              "item_type",
+              "inventarnummer",
+              "fabriknummer",
+              "bemerkung"
+            ]
+          },
+          "Mitteldruckverlängerung": {
+            "title": "MD-Verlaengerung",
+            "fields": [
+              "item_type",
+              "inventarnummer",
+              "bemerkung"
+            ]
+          }
+        },
+        "group_order": [
+          "Atem-Druckluftflasche",
+          "Vollmaske",
+          "Pressluftatmer",
+          "Lungenautomat",
+          "Mitteldruckverlängerung"
+        ]
+      },
+      "function_cards": {
+        "title": "Einsatz- & Übungsdetails",
+        "title_style": "section_heading",
+        "spacing_before": 1,
+        "spacing_after": 0,
+        "body_style": "details_body",
+        "empty_text": "-",
+        "card_prefix": "- ",
+        "card_continuation": "  ",
+        "checklist_prefix": "[ ] ",
+        "checklist_continuation": "    ",
+        "single_line_items": [
+          "Mit Gefahrstoffen beaufschlagt"
+        ]
+      },
+      "remarks": {
+        "title": "Bemerkungen",
+        "title_style": "section_heading",
+        "spacing_before": 1,
+        "spacing_after": 0,
+        "body_style": "remarks_body",
+        "empty_write_lines": 2,
+        "write_line_length": 38,
+        "write_line_gap": 1
+      }
+    }
+  }
+}

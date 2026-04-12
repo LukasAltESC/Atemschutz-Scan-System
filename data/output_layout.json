@@ -1,0 +1,32 @@
+{
+  "group_fields": {
+    "Atem-Druckluftflasche": [
+      "item_type",
+      "inventarnummer",
+      "lf_scan",
+      "bemerkung"
+    ],
+    "Vollmaske": [
+      "item_type",
+      "inventarnummer",
+      "fabriknummer",
+      "bemerkung"
+    ],
+    "Pressluftatmer": [
+      "item_type",
+      "inventarnummer",
+      "bemerkung"
+    ],
+    "Lungenautomat": [
+      "item_type",
+      "inventarnummer",
+      "fabriknummer",
+      "bemerkung"
+    ],
+    "Mitteldruckverlängerung": [
+      "item_type",
+      "inventarnummer",
+      "bemerkung"
+    ]
+  }
+}

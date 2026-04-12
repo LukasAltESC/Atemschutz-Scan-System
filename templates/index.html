@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="hero card compact">
+    <div>
+        <div id="mode-pill" class="status-pill {{ 'listing' if status.mode == mode_lieferschein else ('ready' if status.ready_to_print else 'not-ready') }}">
+            {% if status.mode == mode_lieferschein %}{{ mode_labels[mode_lieferschein] }}{% elif status.ready_to_print %}Druckbereit{% else %}Noch nicht vollständig{% endif %}
+        </div>
+        <h2 id="mode-title">{{ status.mode_label }}</h2>
+        <p class="muted small">Moduswechsel mit "Modus" Taster oder über die Schaltfläche. Reset löscht die aktuellen Scan-Daten, ein langer Reset den eingetragenen Namen und die Bemerkungen.</p>
+    </div>
+    <form method="post" action="{{ url_for('toggle_mode') }}">
+        <button type="submit">Modus umschalten</button>
+    </form>
+</section>
+
+<section class="layout-main">
+    <div class="main-column">
+        <article class="card compact">
+            <div class="section-header-row">
+                <h3>Personen- & Einsatzdaten</h3>
+                <span id="meta-save-state" class="small muted">Automatisch gespeichert</span>
+            </div>
+            <form method="post" action="{{ url_for('save_meta') }}" class="stack-form" id="meta-form">
+                <label><span id="operator-name-label">{{ 'Erfasser' if status.mode == mode_lieferschein else 'Geräteträger/-in' }}</span>
+                    <input name="operator_name" id="operator_name" type="text" value="{{ status.operator_name }}" placeholder="Name eingeben" autocomplete="off">
+                </label>
+                <label id="usage-duration-row" {% if status.mode == mode_lieferschein %}style="display:none"{% endif %}>Einsatzdauer (Minuten)
+                    <input name="usage_duration_minutes" id="usage_duration_minutes" type="text" value="{{ status.usage_duration_minutes }}" placeholder="z. B. 25" autocomplete="off">
+                </label>
+                <label>Bemerkungen
+                    <textarea name="remarks" id="remarks" rows="4" placeholder="Freitext für Druck / Export">{{ status.remarks }}</textarea>
+                    <span id="remarks-print-warning" class="small warning-note" {% if status.settings.print_remarks %}style="display:none"{% endif %}>Hinweis: Diese Bemerkungen werden nicht gedruckt.</span>
+                </label>
+            </form>
+            <div class="button-row top-gap">
+                <form method="post" action="{{ url_for('clear_name') }}"><button type="submit">Name löschen</button></form>
+                <form method="post" action="{{ url_for('clear_remarks') }}"><button type="submit">Bemerkungen löschen</button></form>
+            </div>
+        </article>
+
+        <article class="card compact">
+            <h3>Scan-Zustand</h3>
+            <div class="button-row top-gap">
+                <form method="post" action="{{ url_for('reset') }}"><button type="submit" class="danger">Scan-Zustand löschen</button></form>
+            </div>
+            <div class="stats-grid top-gap">
+                <div><span class="muted">Letzter Scan</span><strong id="last-scan">{{ status.last_scan or '-' }}</strong></div>
+                <div><span class="muted">Normalisiert</span><strong id="last-normalized">{{ status.last_normalized_scan or '-' }}</strong></div>
+                <div><span class="muted">Letzter Erfolg</span><strong id="last-success">{{ status.last_success or '-' }}</strong></div>
+                <div><span class="muted">Letzter Fehler</span><strong id="last-error">{{ status.last_error or '-' }}</strong></div>
+                <div><span class="muted">Systemfehler</span><strong id="system-error">{{ status.system_error or '-' }}</strong></div>
+                <div><span class="muted">Letzte Aktivität</span><strong id="last-activity-at">{{ status.last_activity_at }}</strong></div>
+            </div>
+        </article>
+
+        <article class="card compact">
+            <h3 id="section-title">{{ status.mode_label }}</h3>
+            <p id="mode-subtitle" class="small muted">Pflichtgruppen: {{ status.required_group_count }} · Optionale Gruppen: {{ status.optional_group_count }}</p>
+            <div id="verwendungsnachweis-block" {% if status.mode != mode_verwendungsnachweis %}style="display:none"{% endif %}>
+                <div class="slot-grid" id="verwendungsnachweis-grid"></div>
+            </div>
+            <div id="lieferschein-block" {% if status.mode != mode_lieferschein %}style="display:none"{% endif %}>
+                <div class="slot-grid" id="lieferschein-grid"></div>
+            </div>
+        </article>
+
+        <article class="card compact">
+            <h3>Einsatz- & Übungsdetails</h3>
+            <div id="function-card-list">
+                {% if status.function_cards %}
+                    <ul>
+                        {% for card in status.function_cards %}<li>{{ card.label }}</li>{% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="muted">Noch keine Funktionskarte gescannt.</p>
+                {% endif %}
+            </div>
+            <p class="small muted">Wenn keine Karte gescannt wurde, wird die Standard-Checkliste aus <code>data/detail_checklist.json</code> als Checkliste mit Kästchen angezeigt.</p>
+        </article>
+    </div>
+
+    <aside class="side-column">
+        <article class="card compact slim-card output-sidebar-card">
+            <h3>Ausgabe</h3>
+            <form method="post" class="stack-form" id="output-form">
+                <label>Anzahl Kopien
+                    <input name="copy_count" id="copy_count" type="number" min="1" step="1" value="1">
+                </label>
+                <div class="button-row">
+                    <button type="submit" class="primary" formaction="{{ url_for('trigger_print') }}">Druck auslösen</button>
+                    <button type="submit" formaction="{{ url_for('create_files') }}">TXT/CSV erstellen</button>
+                </div>
+            </form>
+        </article>
+
+        <article class="card compact slim-card">
+            <h3>Letzte Ereignisse</h3>
+            <div class="event-list compact" id="event-list"></div>
+        </article>
+
+        <article class="card compact slim-card">
+            <div class="section-header-row">
+                <h3>Einstellungen</h3>
+                <span id="settings-save-state" class="small muted">Automatisch gespeichert</span>
+            </div>
+            <form method="post" action="{{ url_for('save_settings') }}" class="stack-form" id="settings-form">
+                <label class="checkbox-row"><input name="reset_after_print" id="reset_after_print" type="checkbox" value="1" {% if status.settings.reset_after_print %}checked{% endif %}> Scan-Zustand nach Druck löschen</label>
+                <label class="checkbox-row"><input name="clear_name_after_print" id="clear_name_after_print" type="checkbox" value="1" {% if status.settings.clear_name_after_print %}checked{% endif %}> Name nach Druck löschen</label>
+                <label class="checkbox-row"><input name="print_datetime_placeholder" id="print_datetime_placeholder" type="checkbox" value="1" {% if status.settings.print_datetime_placeholder %}checked{% endif %}> Datum/Uhrzeit als Platzhalter drucken</label>
+                <label class="checkbox-row"><input name="print_default_details_without_card" id="print_default_details_without_card" type="checkbox" value="1" {% if status.settings.print_default_details_without_card %}checked{% endif %}> Standard Einsatz- & Übungsdetails</label>
+                <label class="checkbox-row"><input name="print_remarks" id="print_remarks" type="checkbox" value="1" {% if status.settings.print_remarks %}checked{% endif %}> Bemerkungen drucken</label>
+            </form>
+            <p class="small muted">Druck verwendet immer 1 Kopie als Standard und 2 Sekunden Pause aus der Konfiguration.</p>
+        </article>
+
+        <article class="card compact slim-card">
+            <h3>Scanner & Datenbank</h3>
+            <div id="scanner-list"></div>
+            <div class="top-gap small muted">Datenbankeinträge: <strong id="db-count">{{ db_summary.count }}</strong></div>
+            <ul id="db-group-list" class="small"></ul>
+        </article>
+    </aside>
+</section>
+
+<script>
+const MODE_VERWENDUNGSNACHWEIS = {{ mode_verwendungsnachweis|tojson }};
+const MODE_LIEFERSCHEIN = {{ mode_lieferschein|tojson }};
+
+const operatorInput = document.getElementById('operator_name');
+const durationInput = document.getElementById('usage_duration_minutes');
+const remarksInput = document.getElementById('remarks');
+const copyCountInput = document.getElementById('copy_count');
+const usageDurationRow = document.getElementById('usage-duration-row');
+const operatorNameLabel = document.getElementById('operator-name-label');
+const metaSaveState = document.getElementById('meta-save-state');
+const settingsSaveState = document.getElementById('settings-save-state');
+
+const resetAfterPrintInput = document.getElementById('reset_after_print');
+const clearNameAfterPrintInput = document.getElementById('clear_name_after_print');
+const datetimePlaceholderInput = document.getElementById('print_datetime_placeholder');
+const checklistInput = document.getElementById('print_default_details_without_card');
+const printRemarksInput = document.getElementById('print_remarks');
+const remarksPrintWarning = document.getElementById('remarks-print-warning');
+
+let metaDirty = false;
+let settingsDirty = false;
+let metaSaveTimer = null;
+let metaSaveStateTimer = null;
+let settingsSaveStateTimer = null;
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
+
+function syncRemarksPrintWarning() {
+    remarksPrintWarning.style.display = printRemarksInput.checked ? 'none' : '';
+}
+
+function setTransientState(element, text) {
+    element.textContent = text;
+    element.classList.remove('save-state-ok', 'save-state-error');
+}
+
+function setSavedState(element, text = 'Gespeichert') {
+    element.textContent = text;
+    element.classList.add('save-state-ok');
+    element.classList.remove('save-state-error');
+}
+
+function setErrorState(element, text = 'Speichern fehlgeschlagen') {
+    element.textContent = text;
+    element.classList.add('save-state-error');
+    element.classList.remove('save-state-ok');
+}
+
+function queueMetaSave() {
+    metaDirty = true;
+    setTransientState(metaSaveState, 'Ungespeichert');
+    clearTimeout(metaSaveTimer);
+    clearTimeout(metaSaveStateTimer);
+    metaSaveTimer = setTimeout(saveMeta, 500);
+}
+
+async function saveMeta() {
+    metaDirty = true;
+    setTransientState(metaSaveState, 'Speichere...');
+    const payload = new URLSearchParams({
+        operator_name: operatorInput.value,
+        usage_duration_minutes: durationInput.value,
+        remarks: remarksInput.value,
+    });
+    try {
+        const response = await fetch('{{ url_for('api_save_meta') }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+            body: payload.toString(),
+        });
+        if (!response.ok) throw new Error('save failed');
+        metaDirty = false;
+        setSavedState(metaSaveState);
+        metaSaveStateTimer = setTimeout(() => setTransientState(metaSaveState, 'Automatisch gespeichert'), 1500);
+    } catch (error) {
+        console.error(error);
+        setErrorState(metaSaveState);
+    }
+}
+
+async function saveSettings() {
+    settingsDirty = true;
+    clearTimeout(settingsSaveStateTimer);
+    setTransientState(settingsSaveState, 'Speichere...');
+    const payload = new URLSearchParams({
+        reset_after_print: resetAfterPrintInput.checked ? '1' : '0',
+        clear_name_after_print: clearNameAfterPrintInput.checked ? '1' : '0',
+        print_datetime_placeholder: datetimePlaceholderInput.checked ? '1' : '0',
+        print_default_details_without_card: checklistInput.checked ? '1' : '0',
+        print_remarks: printRemarksInput.checked ? '1' : '0',
+    });
+    try {
+        const response = await fetch('{{ url_for('api_save_settings') }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+            body: payload.toString(),
+        });
+        if (!response.ok) throw new Error('save failed');
+        settingsDirty = false;
+        setSavedState(settingsSaveState);
+        settingsSaveStateTimer = setTimeout(() => setTransientState(settingsSaveState, 'Automatisch gespeichert'), 1500);
+    } catch (error) {
+        console.error(error);
+        setErrorState(settingsSaveState);
+    }
+}
+
+function renderEvents(events) {
+    const container = document.getElementById('event-list');
+    container.innerHTML = events.map(event => `
+        <div class="event event-${escapeHtml(event.level)}">
+            <div class="small muted">${escapeHtml(event.timestamp)} · ${escapeHtml(event.source)}</div>
+            <div>${escapeHtml(event.message)}</div>
+        </div>
+    `).join('') || '<p class="muted">Noch keine Ereignisse.</p>';
+}
+
+function groupFields(status, groupName) {
+    return ((status.output_layout || {})[groupName] || []);
+}
+
+function fieldLabel(status, fieldName) {
+    return ((status.output_field_labels || {})[fieldName] || fieldName);
+}
+
+function renderMaterialFields(status, groupName, item, suppressFields = []) {
+    const fields = groupFields(status, groupName);
+    const suppressed = new Set(suppressFields);
+    const used = new Set();
+    const rows = [];
+
+    fields.forEach(fieldName => {
+        if (suppressed.has(fieldName)) return;
+        used.add(fieldName);
+        rows.push(`
+            <div class="material-field">
+                <div class="material-field-label">${escapeHtml(fieldLabel(status, fieldName))}</div>
+                <div class="material-field-value">${escapeHtml(item[fieldName] || '-')}</div>
+            </div>
+        `);
+    });
+
+    if (item.geraetenummer && !used.has('geraetenummer') && !suppressed.has('geraetenummer')) {
+        rows.push(`
+            <div class="material-field">
+                <div class="material-field-label">${escapeHtml(fieldLabel(status, 'geraetenummer'))}</div>
+                <div class="material-field-value">${escapeHtml(item.geraetenummer)}</div>
+            </div>
+        `);
+    }
+
+    return rows.join('') || '<div class="material-field"><div class="material-field-label">Status</div><div class="material-field-value">-</div></div>';
+}
+
+function renderVerwendungsnachweis(status) {
+    const target = document.getElementById('verwendungsnachweis-grid');
+    const capacities = status.group_capacity_verwendungsnachweis || {};
+    const required = new Set(status.required_groups || []);
+    const groups = [...(status.required_groups || []), ...(status.optional_groups || [])];
+
+    target.innerHTML = groups.map(groupName => {
+        const items = ((status.required_slots || {})[groupName] || (status.optional_slots || {})[groupName] || []);
+        const capacity = capacities[groupName] || 1;
+        const kind = required.has(groupName) ? 'Pflicht' : 'Optional';
+        const filled = items.length > 0;
+        return `
+            <div class="slot ${filled ? 'filled' : 'empty'}">
+                <div class="slot-header-row">
+                    <h4>${escapeHtml(groupName)}</h4>
+                    <span class="slot-badge ${required.has(groupName) ? 'required' : 'optional'}">${kind}</span>
+                </div>
+                <div class="small muted">Belegt: ${items.length} / ${capacity}</div>
+                ${items.length ? items.map(item => `
+                    <div class="slot-entry">
+                        ${groupFields(status, groupName).includes('item_type') ? '' : `<div class="slot-entry-title">${escapeHtml(item.item_type || 'Ohne Typ')}</div>`}
+                        <div class="material-field-list">${renderMaterialFields(status, groupName, item)}</div>
+                    </div>
+                `).join('') : '<div class="small muted top-gap">Noch leer</div>'}
+            </div>
+        `;
+    }).join('');
+}
+
+function renderLieferschein(status) {
+    const target = document.getElementById('lieferschein-grid');
+    const grouped = status.lieferschein_grouped_items || {};
+    const groups = [...(status.required_groups || []), ...(status.optional_groups || [])];
+    target.innerHTML = groups.map(groupName => {
+        const entries = grouped[groupName] || [];
+        return `
+            <div class="slot ${entries.length ? 'filled' : 'empty'} slot-lieferschein">
+                <div class="slot-header-row">
+                    <h4>${escapeHtml(groupName)}</h4>
+                    <span class="slot-badge neutral">${entries.length} Typen</span>
+                </div>
+                ${entries.length ? entries.map(entry => `
+                    <div class="group-block">
+                        <div class="group-block-title">${escapeHtml(entry.item_type || 'Ohne Typ')}</div>
+                        ${(entry.items || []).map(item => `
+                            <div class="lieferschein-entry">
+                                <div class="material-field-list">${renderMaterialFields(status, groupName, item, ['item_type'])}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('') : '<div class="small muted top-gap">Noch leer</div>'}
+            </div>
+        `;
+    }).join('') || '<p class="muted">Noch keine Einträge.</p>';
+}
+
+function renderFunctionCards(status) {
+    const target = document.getElementById('function-card-list');
+    const cards = status.function_cards || [];
+    if (cards.length) {
+        target.innerHTML = `<ul>${cards.map(card => `<li>${escapeHtml(card.label)}</li>`).join('')}</ul>`;
+        return;
+    }
+    if (status.settings.print_default_details_without_card) {
+        const defaults = status.default_detail_checklist || [];
+        target.innerHTML = `
+            <div class="checklist-list">
+                ${defaults.map(item => `
+                    <label class="checklist-item static-item">
+                        <input type="checkbox" disabled>
+                        <span>${escapeHtml(item)}</span>
+                    </label>
+                `).join('')}
+            </div>
+        `;
+    } else {
+        target.innerHTML = '<p class="muted">Noch keine Funktionskarte gescannt.</p>';
+    }
+}
+
+function renderScanners(scannerStatus) {
+    const target = document.getElementById('scanner-list');
+    target.innerHTML = scannerStatus.map(scanner => `<div class="small line-break">${escapeHtml(scanner.device_path)} · ${scanner.alive ? 'aktiv' : 'inaktiv'}</div>`).join('') || '<div class="small muted">Keine Scanner gestartet.</div>';
+}
+
+function renderDbSummary(database) {
+    document.getElementById('db-count').textContent = database.count ?? 0;
+    const list = document.getElementById('db-group-list');
+    const entries = Object.entries(database.by_group || {});
+    list.innerHTML = entries.map(([groupName, count]) => `<li class="line-break">${escapeHtml(groupName)}: ${escapeHtml(count)}</li>`).join('');
+}
+
+function applyModeUi(status) {
+    const isLieferschein = status.mode === MODE_LIEFERSCHEIN;
+    operatorNameLabel.textContent = isLieferschein ? 'Erfasser' : 'Geräteträger/-in';
+    usageDurationRow.style.display = isLieferschein ? 'none' : '';
+    document.getElementById('verwendungsnachweis-block').style.display = isLieferschein ? 'none' : '';
+    document.getElementById('lieferschein-block').style.display = isLieferschein ? '' : 'none';
+    document.getElementById('mode-subtitle').textContent = isLieferschein
+        ? 'Erfasste Gruppen werden pro Typ mit Einrückungen dargestellt.'
+        : `Pflichtgruppen: ${status.required_group_count || 0} · Optionale Gruppen: ${status.optional_group_count || 0}`;
+}
+
+function renderStatus(data) {
+    const status = data.status;
+    const pill = document.getElementById('mode-pill');
+    const isLieferschein = status.mode === MODE_LIEFERSCHEIN;
+    pill.className = 'status-pill ' + (isLieferschein ? 'listing' : (status.ready_to_print ? 'ready' : 'not-ready'));
+    pill.textContent = isLieferschein ? 'Lieferschein' : (status.ready_to_print ? 'Druckbereit' : 'Noch nicht vollständig');
+
+    document.getElementById('mode-title').textContent = status.mode_label || '-';
+    document.getElementById('section-title').textContent = status.mode_label || '-';
+    document.getElementById('last-scan').textContent = status.last_scan || '-';
+    document.getElementById('last-normalized').textContent = status.last_normalized_scan || '-';
+    document.getElementById('last-success').textContent = status.last_success || '-';
+    document.getElementById('last-error').textContent = status.last_error || '-';
+    document.getElementById('system-error').textContent = status.system_error || '-';
+    document.getElementById('last-activity-at').textContent = status.last_activity_at || '-';
+
+    applyModeUi(status);
+
+    if (!metaDirty && document.activeElement !== operatorInput) operatorInput.value = status.operator_name || '';
+    if (!metaDirty && document.activeElement !== durationInput) durationInput.value = status.usage_duration_minutes || '';
+    if (!metaDirty && document.activeElement !== remarksInput) remarksInput.value = status.remarks || '';
+
+    if (!settingsDirty && document.activeElement !== resetAfterPrintInput) resetAfterPrintInput.checked = !!status.settings.reset_after_print;
+    if (!settingsDirty && document.activeElement !== clearNameAfterPrintInput) clearNameAfterPrintInput.checked = !!status.settings.clear_name_after_print;
+    if (!settingsDirty && document.activeElement !== datetimePlaceholderInput) datetimePlaceholderInput.checked = !!status.settings.print_datetime_placeholder;
+    if (!settingsDirty && document.activeElement !== checklistInput) checklistInput.checked = !!status.settings.print_default_details_without_card;
+
+    renderVerwendungsnachweis(status);
+    renderLieferschein(status);
+    renderFunctionCards(status);
+    renderEvents(status.events || []);
+    renderScanners(data.scanner_status || []);
+    renderDbSummary(data.database || {});
+    if (!settingsDirty && document.activeElement !== printRemarksInput) printRemarksInput.checked = !!status.settings.print_remarks;
+    syncRemarksPrintWarning();
+}
+
+async function refreshStatus() {
+    try {
+        const response = await fetch('{{ url_for('api_status') }}', {cache: 'no-store'});
+        const data = await response.json();
+        renderStatus(data);
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+[operatorInput, durationInput, remarksInput].forEach(element => {
+    element.addEventListener('input', queueMetaSave);
+    element.addEventListener('change', queueMetaSave);
+});
+
+[resetAfterPrintInput, clearNameAfterPrintInput, datetimePlaceholderInput, checklistInput, printRemarksInput].forEach(element => {
+    element.addEventListener('change', () => {
+        syncRemarksPrintWarning();
+        saveSettings();
+    });
+});
+
+copyCountInput.addEventListener('blur', () => {
+    if (!copyCountInput.value || Number(copyCountInput.value) < 1) copyCountInput.value = '1';
+});
+
+syncRemarksPrintWarning();
+
+renderStatus({
+    status: {{ status|tojson }},
+    scanner_status: {{ scanner_status|tojson }},
+    database: {{ db_summary|tojson }},
+});
+setInterval(refreshStatus, 1000);
+</script>
+{% endblock %}

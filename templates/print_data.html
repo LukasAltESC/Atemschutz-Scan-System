@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="grid two-wide">
+    <article class="card">
+        <h2>Letztes Payload</h2>
+        <p class="small muted">Unterschrift: Hier siehst du das zuletzt erzeugte Druck-/Export-Payload.</p>
+        <pre>{{ status.last_print_payload | tojson(indent=2) if status.last_print_payload else 'Noch kein Payload erzeugt.' }}</pre>
+    </article>
+
+    <article class="card">
+        <div class="list-actions">
+            <div>
+                <h2>Gespeicherte TXT/CSV-Dateien</h2>
+                <p class="small muted">TXT und CSV bleiben gespeichert, bis du sie über die Schaltfläche löschst.</p>
+            </div>
+            <form method="post" action="{{ url_for('delete_all_exports') }}" onsubmit="return confirm('Alle TXT/CSV-Dateien wirklich löschen?');">
+                <button type="submit" class="danger">TXT/CSV löschen</button>
+            </form>
+        </div>
+        {% if exports %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datei</th>
+                        <th>Geändert</th>
+                        <th>Größe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in exports %}
+                        <tr>
+                            <td><a class="line-break" href="{{ url_for('download_export', filename=item.name) }}">{{ item.name }}</a></td>
+                            <td>{{ item.modified_at }}</td>
+                            <td>{{ item.size_bytes }} B</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="muted">Noch keine TXT/CSV-Dateien vorhanden.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

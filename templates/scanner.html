@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="grid two-wide">
+    <article class="card">
+        <h2>System & Scanner</h2>
+        <p>Hier kannst du die zwei aktiven Scanner-Pfade einstellen. Am stabilsten sind <code>/dev/input/by-id/...</code>-Pfade.</p>
+        <form method="post" action="{{ url_for('scanner_save') }}" class="stack-form">
+            <label>Scanner 1
+                <input name="scanner_1" type="text" value="{{ status.settings.scanner_device_paths[0] if status.settings.scanner_device_paths|length > 0 else '' }}" placeholder="/dev/input/by-id/...">
+            </label>
+            <label>Scanner 2
+                <input name="scanner_2" type="text" value="{{ status.settings.scanner_device_paths[1] if status.settings.scanner_device_paths|length > 1 else '' }}" placeholder="/dev/input/by-id/...">
+            </label>
+            <button type="submit">Scanner speichern</button>
+        </form>
+        <p class="small muted">Hinweis: <code>/dev/input/eventX</code> kann sich nach Neustart, Umstecken oder Portwechsel ändern. <code>by-id</code> bleibt meistens stabiler. Wenn zwei identische Scanner kein eigenes USB-Serienmerkmal haben, kann auch <code>by-id</code> nicht immer eindeutig bleiben.</p>
+    </article>
+
+    <article class="card">
+        <h2>Aktiver GPIO-Status</h2>
+        {% if status.gpio_status %}
+            <table>
+                <tbody>
+                    <tr><th>GPIO verfügbar</th><td>{{ 'ja' if status.gpio_status.available else 'nein (Dummy-Modus)' }}</td></tr>
+                    <tr><th>GPIO initialisiert</th><td>{{ 'ja' if status.gpio_status.initialized else 'nein' }}</td></tr>
+                    <tr><th>Grüne LED</th><td><code>GPIO {{ status.gpio_status.pins.green_led_pin }}</code></td></tr>
+                    <tr><th>Rote LED</th><td><code>GPIO {{ status.gpio_status.pins.red_led_pin }}</code></td></tr>
+                    <tr><th>Drucktaster</th><td><code>GPIO {{ status.gpio_status.pins.print_button_pin }}</code></td></tr>
+                    <tr><th>Reset-Taster</th><td><code>GPIO {{ status.gpio_status.pins.reset_button_pin }}</code></td></tr>
+                    <tr><th>Modus-Taster</th><td><code>GPIO {{ status.gpio_status.pins.mode_button_pin }}</code></td></tr>
+                </tbody>
+            </table>
+            {% if status.gpio_status.last_callback_error %}
+                <p class="muted top-gap">Letzter GPIO-Callback-Fehler: {{ status.gpio_status.last_callback_error }}</p>
+            {% endif %}
+        {% else %}
+            <p class="muted">Kein GPIO-Status verfügbar.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="grid two-wide">
+    <article class="card">
+        <h2>Verfügbare Input-Geräte</h2>
+        {% if available_devices %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pfad</th>
+                        <th>Name</th>
+                        <th>Phys</th>
+                        <th>by-id</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in available_devices %}
+                        <tr>
+                            <td><code class="line-break">{{ device.device_path }}</code></td>
+                            <td class="line-break">{{ device.name }}</td>
+                            <td class="line-break">{{ device.phys or '-' }}</td>
+                            <td>
+                                {% if device.by_id_paths %}
+                                    {% for entry in device.by_id_paths %}<div><code class="line-break">{{ entry }}</code></div>{% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="muted">Keine Input-Geräte gefunden.</p>
+        {% endif %}
+    </article>
+
+    <article class="card">
+        <h2>Funktionskarten</h2>
+        <p>Aktive Datei: <code class="line-break">{{ status.config_status.function_cards.path }}</code></p>
+        <p class="small muted">Wichtig: Genau diese Datei wird vom laufenden Dienst neu geladen.</p>
+        <form method="post" action="{{ url_for('reload_function_cards') }}">
+            <button type="submit">Systemdateien neu laden</button>
+        </form>
+        {% if status.config_status.function_cards.last_error %}
+            <p class="muted top-gap">Letzter Fehler: {{ status.config_status.function_cards.last_error }}</p>
+        {% endif %}
+        {% if status.config_status.function_cards.last_warning %}
+            <p class="muted">Hinweis: {{ status.config_status.function_cards.last_warning }}</p>
+        {% endif %}
+        <ul class="top-gap">
+            {% for card in status.function_card_config %}
+                <li><code>{{ card.code }}</code> → {{ card.label }}</li>
+            {% else %}
+                <li class="muted">Keine Funktionskarten konfiguriert.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="grid two-wide">
+    <article class="card">
+        <h2>Checklisten-Vorschau</h2>
+        <p>Aktive Datei: <code class="line-break">{{ status.config_status.detail_checklist.path }}</code></p>
+        {% if status.config_status.detail_checklist.last_error %}
+            <p class="muted">Letzter Fehler: {{ status.config_status.detail_checklist.last_error }}</p>
+        {% endif %}
+        <div class="checklist-list top-gap">
+            {% for item in status.default_detail_checklist %}
+                <label class="checklist-item static-item">
+                    <input type="checkbox" disabled>
+                    <span>{{ item }}</span>
+                </label>
+            {% else %}
+                <p class="muted">Keine Checklisten-Einträge konfiguriert.</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="card">
+        <h2>Aktive Scanner</h2>
+        <ul>
+            {% for scanner in scanner_status %}
+                <li class="line-break"><code>{{ scanner.device_path }}</code> – {{ 'aktiv' if scanner.alive else 'inaktiv' }}</li>
+            {% else %}
+                <li class="muted">Keine Scanner-Threads aktiv.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="grid two-wide">
+    <article class="card">
+        <h2>Ausgabelayout</h2>
+        <p>Aktive Datei: <code class="line-break">{{ status.config_status.output_layout.path }}</code></p>
+        {% if status.config_status.output_layout.last_error %}
+            <p class="muted">Letzter Fehler: {{ status.config_status.output_layout.last_error }}</p>
+        {% endif %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Gruppe</th>
+                    <th>Felder</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group_name, fields in status.output_layout.items() %}
+                    <tr>
+                        <td class="line-break">{{ group_name }}</td>
+                        <td class="line-break">{{ fields | join(', ') }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="card">
+        <h2>Bondruck-Layout</h2>
+        <p>Aktive Datei: <code class="line-break">{{ status.config_status.print_layout.path }}</code></p>
+        {% if status.config_status.print_layout.last_error %}
+            <p class="muted">Letzter Fehler: {{ status.config_status.print_layout.last_error }}</p>
+        {% endif %}
+        <table>
+            <tbody>
+                <tr><th>Papierbreite</th><td>{{ status.config_status.print_layout.paper_width }} Zeichen</td></tr>
+                <tr><th>Bandnachlauf</th><td>{{ status.config_status.print_layout.line_feeds_after_print }} Zeilen</td></tr>
+                <tr><th>Drucker</th><td><code>{{ status.printer_status.device_node }}</code></td></tr>
+            </tbody>
+        </table>
+        <p class="small muted top-gap">Texte, Schriftgrößen, Ausrichtung, Abstände und Bandnachlauf werden zentral über <code>data/print_layout.json</code> gesteuert.</p>
+    </article>
+</section>
+{% endblock %}

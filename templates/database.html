@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="grid two-wide">
+    <article class="card">
+        <h2>Datensatz anlegen / aktualisieren</h2>
+        <form method="post" action="{{ url_for('database_save') }}" class="stack-form">
+            <label>ID (nur für Update)
+                <input name="item_id" type="number" placeholder="leer = neuer Datensatz">
+            </label>
+            <label>Rohgruppe
+                <input name="raw_group" type="text" required placeholder="z. B. Vollmaske oder Atemschutz-Vollmaske">
+            </label>
+            <label>Typ / Bezeichnung
+                <input name="item_type" type="text" placeholder="z. B. FPS7000">
+            </label>
+            <label>Inventarnummer
+                <input name="inventarnummer" type="text" placeholder="z. B. 0164-016881">
+            </label>
+            <label>Fabriknummer <span class="muted small">scanbar bei Vollmaske / Lungenautomat</span>
+                <input name="fabriknummer" type="text" placeholder="z. B. 9853143">
+            </label>
+            <label>Seriennummer / Gerätenummer <span class="muted small">Anzeige, aber nicht scanbar</span>
+                <input name="geraetenummer" type="text" placeholder="z. B. BSSN-2152">
+            </label>
+            <label>LF-Scan <span class="muted small">nur für Atem-Druckluftflaschen relevant</span>
+                <input name="lf_scan" type="text" placeholder="z. B. 0115fc8d41">
+            </label>
+            <label>Bemerkung
+                <input name="bemerkung" type="text" placeholder="Optionale Zusatzinfo">
+            </label>
+            <label class="checkbox-row">
+                <input name="is_active" type="checkbox" value="1" checked>
+                Aktiv
+            </label>
+            <button type="submit" class="primary">Speichern</button>
+        </form>
+    </article>
+
+    <article class="card">
+        <h2>CSV / SQLite</h2>
+        <p>Die Runtime nutzt SQLite. Parallel dazu wird die Datei <code>data/Database.CSV</code> gepflegt, damit du sie mit <code>nano</code> bearbeiten kannst.</p>
+        <p>Scanbar sind je nach Gruppe <strong>Inventarnummer</strong>, <strong>Fabriknummer</strong> und bei Atem-Druckluftflaschen zusätzlich <strong>LF-Scan</strong>. Die Seriennummer / Gerätenummer wird angezeigt, aber nicht als Scan-Kennung verwendet.</p>
+        <p>Erlaubte Zielgruppen im System: <strong>Atem-Druckluftflasche</strong>, <strong>Vollmaske</strong>, <strong>Pressluftatmer</strong>, <strong>Lungenautomat</strong>, <strong>Mitteldruckverlängerung</strong>.</p>
+        <p>Nach Änderungen per <code>nano</code> oder GitHub: <code>python3 manage_db.py import-csv</code></p>
+        <form method="post" action="{{ url_for('database_import_csv') }}">
+            <button type="submit">CSV nach SQLite importieren</button>
+        </form>
+    </article>
+</section>
+
+<section class="card">
+    <h2>Datensätze</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Systemgruppe</th>
+                <th>Rohgruppe</th>
+                <th>Typ</th>
+                <th>Inventarnummer</th>
+                <th>Fabriknummer</th>
+                <th>Seriennummer</th>
+                <th>LF-Scan</th>
+                <th>Scanbar über</th>
+                <th>Aktiv</th>
+                <th>Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td class="line-break">{{ item.system_group }}</td>
+                    <td class="line-break">{{ item.raw_group }}</td>
+                    <td class="line-break">{{ item.item_type or '-' }}</td>
+                    <td class="line-break">{{ item.inventarnummer or '-' }}</td>
+                    <td class="line-break">{{ item.fabriknummer or '-' }}</td>
+                    <td class="line-break">{{ item.geraetenummer or '-' }}</td>
+                    <td class="line-break">{{ item.lf_scan or '-' }}</td>
+                    <td>
+                        {% if item.identifiers %}
+                            {% for identifier in item.identifiers %}
+                                <div class="line-break">{{ identifier.identifier_type }}: {{ identifier.identifier_value }}</div>
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ 'Ja' if item.is_active else 'Nein' }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('database_delete', item_id=item.id) }}" onsubmit="return confirm('Wirklich löschen?');">
+                            <button type="submit" class="danger">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="11">Keine Daten vorhanden.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

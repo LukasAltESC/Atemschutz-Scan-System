@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or project_name }}</title>
+    {% if favicon_available %}<link rel="icon" type="image/png" href="{{ url_for('static', filename='thw-zahnkranz.png') }}">{% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <img class="brand-logo" src="{{ url_for('static', filename='thw-zahnkranz.png') }}" alt="THW Zahnkranz">
+            <div class="brand-text">
+                <h1>{{ project_name }}</h1>
+                <p class="subtitle">THW OV Donaueschingen - Lukas Müller</p>
+            </div>
+        </div>
+        <nav>
+            <a href="{{ url_for('index') }}">Erfassung</a>
+            <a href="{{ url_for('print_data_view') }}">Ausgabe</a>
+            <a href="{{ url_for('database_view') }}">Datenbank</a>
+            <a href="{{ url_for('system_view') }}">System</a>
+        </nav>
+    </header>
+
+    <div class="flash-wrapper">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

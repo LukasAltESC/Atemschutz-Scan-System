@@ -1,0 +1,13 @@
+[Unit]
+Description=Atemschutz-Scan-System
+After=network.target
+
+[Service]
+User=__RUN_USER__
+WorkingDirectory=/opt/atemschutz-scan-system
+ExecStart=/usr/bin/python3 /opt/atemschutz-scan-system/app.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
