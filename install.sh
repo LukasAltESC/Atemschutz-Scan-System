@@ -4,6 +4,7 @@ set -euo pipefail
 PROJECT_NAME="atemschutz-scan-system"
 INSTALL_DIR="/opt/${PROJECT_NAME}"
 SERVICE_NAME="${PROJECT_NAME}.service"
+CAPTIVE_PORTAL_SERVICE_NAME="${PROJECT_NAME}-captive-portal.service"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_USER="${SUDO_USER:-agw}"
 
@@ -26,6 +27,10 @@ AP_DHCP_LEASE_TIME="${AP_DHCP_LEASE_TIME:-24h}"
 AP_CONNECTION_NAME="${AP_CONNECTION_NAME:-atemschutz-access-point}"
 AP_LOCAL_HOSTNAME="${AP_LOCAL_HOSTNAME:-atemschutz-scan-system.local}"
 AP_BACKEND="${AP_BACKEND:-classic}"
+CAPTIVE_PORTAL_ENABLED="${CAPTIVE_PORTAL_ENABLED:-1}"
+CAPTIVE_PORTAL_EXTERNAL_URL="${CAPTIVE_PORTAL_EXTERNAL_URL:-http://portal.atemschutz.scan/}"
+WEB_APP_PORT="${WEB_APP_PORT:-5000}"
+WEB_PROXY_PORT="${WEB_PROXY_PORT:-80}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Bitte mit sudo ausfuehren: sudo ./install.sh"
@@ -131,6 +136,38 @@ disable_wlan_client_conflicts() {
   fi
 }
 
+configure_nginx_reverse_proxy() {
+  echo "== Richte lokalen Web-Proxy fuer Captive Portal und Port 80 ein =="
+  apt install -y nginx
+
+  rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
+  cat > /etc/nginx/sites-available/${PROJECT_NAME}.conf <<NGINX
+server {
+    listen ${WEB_PROXY_PORT} default_server;
+    listen [::]:${WEB_PROXY_PORT} default_server;
+    server_name _;
+
+    proxy_read_timeout 300;
+    proxy_connect_timeout 300;
+    proxy_send_timeout 300;
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:${WEB_APP_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX
+
+  ln -sf /etc/nginx/sites-available/${PROJECT_NAME}.conf /etc/nginx/sites-enabled/${PROJECT_NAME}.conf
+  nginx -t
+  systemctl enable nginx
+  systemctl restart nginx
+}
+
 configure_access_point_with_classic_stack() {
   echo "== Richte WLAN-Access-Point ueber hostapd/dnsmasq ein =="
   apt install -y hostapd dnsmasq rfkill dhcpcd5 iw
@@ -187,8 +224,21 @@ dhcp-authoritative
 dhcp-range=${AP_DHCP_START},${AP_DHCP_END},${AP_NETMASK},${AP_DHCP_LEASE_TIME}
 dhcp-option=option:router,${AP_IP_ADDRESS}
 dhcp-option=option:dns-server,${AP_IP_ADDRESS}
+DNSMASQ
+
+  if [[ "${CAPTIVE_PORTAL_ENABLED}" == "1" ]]; then
+    cat >> "/etc/dnsmasq.d/${PROJECT_NAME}-ap.conf" <<DNSMASQ
+# Captive Portal: alle DNS-Anfragen im Hotspot auf den Pi aufloesen
+address=/#/${AP_IP_ADDRESS}
+# RFC 8910 Captive-Portal-Hinweis fuer kompatible Clients
+# Der Hostname zeigt absichtlich ebenfalls auf den Pi.
+dhcp-option=114,${CAPTIVE_PORTAL_EXTERNAL_URL}
+DNSMASQ
+  else
+    cat >> "/etc/dnsmasq.d/${PROJECT_NAME}-ap.conf" <<DNSMASQ
 address=/${AP_LOCAL_HOSTNAME}/${AP_IP_ADDRESS}
 DNSMASQ
+  fi
 
   local start_marker="# >>> ${PROJECT_NAME} access point >>>"
   local end_marker="# <<< ${PROJECT_NAME} access point <<<"
@@ -280,13 +330,18 @@ else
   configure_access_point_with_classic_stack
 fi
 
+if [[ "${CAPTIVE_PORTAL_ENABLED}" == "1" ]]; then
+  configure_nginx_reverse_proxy
+fi
+
 echo "== Richte systemd-Service ein =="
 sed "s/__RUN_USER__/${RUN_USER}/g" "${INSTALL_DIR}/atemschutz-scan-system.service" > "/etc/systemd/system/${SERVICE_NAME}"
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"
 
-AP_WEB_URL="http://${AP_IP_ADDRESS}:5000"
+AP_WEB_URL="http://${AP_IP_ADDRESS}"
+AP_DIRECT_WEB_URL="http://${AP_IP_ADDRESS}:${WEB_APP_PORT}"
 ETH_CURRENT_IP="$(get_interface_ip "${ETH_INTERFACE}")"
 
 echo "== Fertig =="
@@ -296,10 +351,14 @@ if [[ "${AP_OPEN_NETWORK}" == "1" ]]; then
 else
   echo "Access-Point Passwort: ${AP_PASSPHRASE}"
 fi
-echo "Access-Point Webinterface: ${AP_WEB_URL}"
+echo "Access-Point Webinterface (Captive Portal/Port 80): ${AP_WEB_URL}"
+echo "Access-Point Direktzugriff: ${AP_DIRECT_WEB_URL}"
 echo "Access-Point SSH: ssh ${RUN_USER}@${AP_IP_ADDRESS}"
 if [[ -n "${ETH_CURRENT_IP}" ]]; then
-  echo "LAN-Webinterface: http://${ETH_CURRENT_IP}:5000"
+  if [[ "${CAPTIVE_PORTAL_ENABLED}" == "1" ]]; then
+    echo "LAN-Webinterface: http://${ETH_CURRENT_IP}"
+  fi
+  echo "LAN-Webinterface direkt: http://${ETH_CURRENT_IP}:${WEB_APP_PORT}"
   echo "LAN-SSH: ssh ${RUN_USER}@${ETH_CURRENT_IP}"
 else
   echo "LAN: DHCP bleibt aktiv. Sobald ${ETH_INTERFACE} verbunden ist, sind SSH und Webinterface ueber die per DHCP vergebene IP erreichbar."
@@ -310,7 +369,8 @@ echo "Bondruck-Layout: ${INSTALL_DIR}/data/print_layout.json"
 echo "Scanner-Test: python3 ${INSTALL_DIR}/tools/list_input_devices.py"
 echo "GPIO-Test: python3 ${INSTALL_DIR}/tools/test_gpio_io.py"
 echo "Drucker-Probe: sudo python3 ${INSTALL_DIR}/tools/test_thermal_printer.py --probe"
-echo "Hotspot-Diagnose: sudo systemctl status hostapd dnsmasq --no-pager"
-echo "Hotspot-Logs: sudo journalctl -u hostapd -u dnsmasq -n 100 --no-pager"
+echo "Hotspot-Diagnose: sudo systemctl status hostapd dnsmasq nginx ${SERVICE_NAME} --no-pager"
+echo "Hotspot-Logs: sudo journalctl -u hostapd -u dnsmasq -u nginx -u ${SERVICE_NAME} -n 150 --no-pager"
 echo "Wichtig: Wenn ein Geraet das WLAN bereits gespeichert hat, Netzwerk auf dem Geraet einmal loeschen/vergessen und neu verbinden."
+echo "Wichtig: Bei Captive-Portal-Erkennung ist HTTPS-Umleitung technisch eingeschraenkt. Der automatische Start funktioniert ueber die HTTP-Erkennung des Geraets."
 echo "Wichtig: Einmal neu einloggen oder rebooten, damit die Gruppenrechte fuer ${RUN_USER} aktiv werden."

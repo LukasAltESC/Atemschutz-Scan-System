@@ -417,3 +417,24 @@ Nicht versionieren:
 - `data/exports/*`
 
 Diese Dateien werden zur Laufzeit erzeugt und gehören nicht in die gepflegte Projektbasis.
+
+
+## Hotspot und Captive Portal
+
+- Standard-SSID: `Atemschutz-Scan-System`
+- Standard-Passwort: `Atemschutz2026`
+- Hotspot-IP: `192.168.50.1`
+- Portal-URL: `http://192.168.50.1/`
+- Direkte Flask-URL: `http://192.168.50.1:5000/`
+- LAN bleibt auf DHCP aktiv und kann weiter fuer SSH und die Weboberflaeche verwendet werden.
+
+### Diagnose
+
+```bash
+sudo systemctl status hostapd dnsmasq nginx atemschutz-scan-system.service --no-pager
+sudo journalctl -u hostapd -u dnsmasq -u nginx -u atemschutz-scan-system.service -n 150 --no-pager
+```
+
+### Wichtiger Hinweis
+
+Moderne Geraete erkennen ein Captive Portal in der Regel ueber unverschluesselte HTTP-Tests. Eine automatische Weiterleitung funktioniert daher fuer die meisten Clients, HTTPS-Ziele koennen aus technischen Gruenden nicht transparent umgebogen werden.

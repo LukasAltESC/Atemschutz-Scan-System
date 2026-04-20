@@ -63,3 +63,14 @@ sudo AP_SSID="Atemschutz-Scan-System" AP_PASSPHRASE="MeinSicheresPasswort" AP_IP
 
 - Die Hardware- und Sicherheitsparameter werden direkt in `config.py` gepflegt.
 - Laufzeitdateien wie SQLite-Datenbank, Exporte und Web-Einstellungen werden bewusst nicht versioniert.
+
+
+## WLAN-Hotspot mit Captive Portal
+
+- Der Hotspot **Atemschutz-Scan-System** wird waehrend `install.sh` eingerichtet.
+- Verbundene Geraete erhalten per WLAN eine Adresse im Netz `192.168.50.0/24`.
+- DNS-Anfragen im Hotspot werden auf den Raspberry Pi aufgeloest, damit ein Captive Portal erkannt wird.
+- Die Weboberflaeche ist ueber **http://192.168.50.1/** erreichbar.
+- Direktzugriff bleibt zusaetzlich ueber **http://192.168.50.1:5000/** moeglich.
+- Ethernet (`eth0`) bleibt parallel auf DHCP fuer SSH und Webzugriff aktiv.
+- Je nach Betriebssystem erscheint das Portal automatisch oder nach dem ersten Oeffnen einer HTTP-Seite.

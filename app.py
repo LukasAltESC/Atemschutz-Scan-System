@@ -38,6 +38,20 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 
 FAVICON_PATH = BASE_DIR / 'static' / 'thw-zahnkranz.png'
+CAPTIVE_PORTAL_PATHS = {
+    '/generate_204',
+    '/gen_204',
+    '/hotspot-detect.html',
+    '/library/test/success.html',
+    '/success.txt',
+    '/ncsi.txt',
+    '/connecttest.txt',
+    '/redirect',
+    '/canonical.html',
+    '/captive-portal',
+    '/kindle-wifi/wifiredirect.html',
+    '/fwlink',
+}
 
 
 def log(message: str) -> None:
@@ -213,6 +227,10 @@ def _parse_copy_count() -> int:
         return max(1, int(request.form.get('copy_count', '1') or '1'))
     except Exception:
         return 1
+
+
+def _is_captive_portal_request(path: str) -> bool:
+    return path in CAPTIVE_PORTAL_PATHS
 
 
 @app.route('/')
@@ -475,6 +493,34 @@ def api_status():
             'printer_status': thermal_printer_manager.get_status(),
         }
     )
+
+
+@app.route('/generate_204')
+@app.route('/gen_204')
+@app.route('/hotspot-detect.html')
+@app.route('/library/test/success.html')
+@app.route('/success.txt')
+@app.route('/ncsi.txt')
+@app.route('/connecttest.txt')
+@app.route('/redirect')
+@app.route('/canonical.html')
+@app.route('/captive-portal')
+@app.route('/kindle-wifi/wifiredirect.html')
+@app.route('/fwlink')
+def captive_portal_redirect():
+    return redirect(url_for('index'), code=302)
+
+
+@app.errorhandler(404)
+def redirect_unknown_get_requests(error):
+    if request.method in ('GET', 'HEAD'):
+        if request.path.startswith('/static/'):
+            return error, 404
+        if request.path.startswith('/api/'):
+            return jsonify({'ok': False, 'message': 'Route nicht gefunden.'}), 404
+        if _is_captive_portal_request(request.path) or not request.path.startswith('/database/delete/'):
+            return redirect(url_for('index'), code=302)
+    return error, 404
 
 
 @atexit.register
