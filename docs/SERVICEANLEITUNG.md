@@ -154,9 +154,12 @@ Nach der Installation stehen standardmaessig zwei Netzwege zur Verfuegung:
    - SSH: `ssh agw@192.168.50.1`
 
 2. **LAN / Ethernet**
+
    - DHCP bleibt aktiv
    - Webinterface: `http://<LAN-IP>:5000`
    - SSH: `ssh agw@<LAN-IP>`
+
+Hinweis: Die Installation reserviert `wlan0` persistent fuer `hostapd` und traegt die Schnittstelle in NetworkManager als `unmanaged` ein. Das ist wichtig, damit der Access Point nach einem Neustart wieder automatisch startet.
 
 Falls der Standard angepasst werden soll, koennen beim Installieren Umgebungsvariablen gesetzt werden, zum Beispiel:
 

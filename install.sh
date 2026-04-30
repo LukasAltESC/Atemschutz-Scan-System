@@ -129,10 +129,29 @@ disable_wlan_client_conflicts() {
   systemctl disable wpa_supplicant.service || true
   systemctl disable "wpa_supplicant@${AP_INTERFACE}.service" || true
 
+  # Raspberry Pi OS Lite 64 Bit nutzt je nach Release NetworkManager.
+  # nmcli device set <iface> managed no ist nur eine Laufzeit-Einstellung
+  # und geht beim Reboot verloren. Danach verwaltet NetworkManager wlan0 wieder,
+  # startet wpa_supplicant und hostapd kann den Access Point nicht mehr
+  # uebernehmen. Deshalb wird wlan0 zusaetzlich persistent als unmanaged
+  # konfiguriert. Ethernet bleibt davon unberuehrt und laeuft weiter per DHCP.
+  mkdir -p /etc/NetworkManager/conf.d
+  cat > "/etc/NetworkManager/conf.d/90-${PROJECT_NAME}-${AP_INTERFACE}-unmanaged.conf" <<NMCONF
+# Managed by ${PROJECT_NAME}/install.sh
+# ${AP_INTERFACE} is reserved for hostapd/dnsmasq access-point mode.
+[keyfile]
+unmanaged-devices=interface-name:${AP_INTERFACE}
+NMCONF
+
   if command -v nmcli >/dev/null 2>&1; then
     nmcli connection down "${AP_CONNECTION_NAME}" || true
     nmcli connection delete "${AP_CONNECTION_NAME}" || true
     nmcli device set "${AP_INTERFACE}" managed no || true
+    nmcli general reload || true
+  fi
+
+  if systemctl is-active --quiet NetworkManager.service; then
+    systemctl reload NetworkManager.service || systemctl restart NetworkManager.service || true
   fi
 }
 

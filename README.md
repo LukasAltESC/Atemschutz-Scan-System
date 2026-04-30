@@ -30,6 +30,7 @@ Danach ist das Webinterface typischerweise unter `http://<PI-IP>:5000` erreichba
 Die `install.sh` richtet zusaetzlich einen WLAN-Access-Point mit folgenden Standardwerten ein:
 
 Technisch wird dafuer auf Raspberry Pi OS Lite bewusst der klassische Stack aus `hostapd` + `dnsmasq` verwendet. Vorhandene WLAN-Client-Dienste auf `wlan0` werden deaktiviert, damit es keinen Konflikt mit dem Hotspot gibt.
+Bei Raspberry Pi OS Lite mit NetworkManager wird `wlan0` ausserdem persistent als `unmanaged` eingetragen, damit der Hotspot nach einem Neustart nicht wieder von NetworkManager/wpa_supplicant uebernommen wird.
 
 - **SSID:** `Atemschutz-Scan-System`
 - **Passwort:** `Atemschutz2026`
